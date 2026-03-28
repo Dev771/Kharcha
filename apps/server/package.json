@@ -1,0 +1,20 @@
+{
+  "name": "@kharcha/server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "ts-node --project tsconfig.json src/main.ts",
+    "start": "node dist/main.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "echo \"Tests will be added in later phases\""
+  },
+  "dependencies": {
+    "@kharcha/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7",
+    "ts-node": "^10.9",
+    "@types/node": "^22"
+  }
+}
