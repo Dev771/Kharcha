@@ -92,7 +92,7 @@ export default function GroupDetailPage() {
   ];
 
   const handleExport = async (format: 'csv' | 'pdf') => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3001';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const response = await fetch(
       `${API_URL}/groups/${groupId}/export?format=${format}`,
       { headers: { Authorization: `Bearer ${token}` } },
