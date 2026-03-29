@@ -240,37 +240,48 @@ export function ExpenseDetailSheet({ expense, members = [], simplifiedSettlement
 
             {/* Split breakdown with settlement status */}
             {expense.splits && expense.splits.length > 0 && (() => {
-              const unsettledCount = expense.splits.filter((s: any) => !s.isSettled && (s.user?.id || s.userId) !== payerId).length;
-              const settledCount = expense.splits.filter((s: any) => s.isSettled).length;
+              // Non-payer splits
+              const nonPayerSplits = expense.splits.filter((s: any) => (s.user?.id || s.userId) !== payerId);
+              const unsettledNonPayer = nonPayerSplits.filter((s: any) => !s.isSettled);
+              const settledNonPayer = nonPayerSplits.filter((s: any) => s.isSettled);
+              const allSettled = unsettledNonPayer.length === 0 && nonPayerSplits.length > 0;
 
               return (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Who Owes What</p>
-                    {settledCount > 0 && (
-                      <Badge variant="credit" size="sm">
-                        <Check className="w-2.5 h-2.5" /> {settledCount} settled
-                      </Badge>
-                    )}
+                    {allSettled ? (
+                      <Badge variant="credit" size="sm"><Check className="w-2.5 h-2.5" /> All Settled</Badge>
+                    ) : settledNonPayer.length > 0 ? (
+                      <Badge variant="credit" size="sm"><Check className="w-2.5 h-2.5" /> {settledNonPayer.length}/{nonPayerSplits.length}</Badge>
+                    ) : null}
                   </div>
                   <div className="card-surface divide-y divide-[var(--border-light)] overflow-hidden">
                     {expense.splits.map((s: any) => {
                       const splitUserId = s.user?.id || s.userId;
                       const isMe = splitUserId === currentUserId;
                       const isPayer = splitUserId === payerId;
+                      // Payer's split is always "settled" (they paid)
+                      const isEffectivelySettled = isPayer || s.isSettled;
+                      // Can settle: non-payer, not yet settled, and current user is the debtor or the payer
                       const canSettle = !isPayer && !s.isSettled && (isMe || currentUserId === payerId);
 
                       return (
-                        <div key={s.id} className={cn('flex items-center gap-2 px-4 py-3', s.isSettled && 'opacity-60')}>
+                        <div key={s.id} className={cn('flex items-center gap-2 px-4 py-3', isEffectivelySettled && !isPayer && 'bg-credit-bg/50')}>
                           <MemberAvatar name={s.user?.name || 'Unknown'} size="xs" />
                           <div className="flex-1 min-w-0">
                             <span className="text-sm text-[var(--foreground)] truncate block">
                               {s.user?.name}{isMe ? ' (you)' : ''}
                             </span>
-                            {isPayer && <span className="text-[10px] text-credit font-medium">Paid</span>}
-                            {s.isSettled && !isPayer && <span className="text-[10px] text-credit font-medium">Settled</span>}
+                            {isPayer && <span className="text-[10px] text-credit font-medium">Paid ✓</span>}
+                            {s.isSettled && !isPayer && (
+                              <span className="text-[10px] text-credit font-medium">
+                                Settled ✓ {s.settledAt ? new Date(s.settledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
+                              </span>
+                            )}
+                            {!isPayer && !s.isSettled && <span className="text-[10px] text-debit font-medium">Unsettled</span>}
                           </div>
-                          <Amount paise={s.owedAmountInPaise} size="sm" className={cn('shrink-0', isPayer ? 'text-credit' : s.isSettled ? 'text-[var(--text-muted)] line-through' : 'text-debit')} />
+                          <Amount paise={s.owedAmountInPaise} size="sm" className={cn('shrink-0', isEffectivelySettled ? 'text-credit' : 'text-debit')} />
                           {canSettle && (
                             <Button variant="ghost" size="sm"
                               onClick={() => { settleSplitMutation.mutate(s.id); toast.success('Split settled!'); }}
@@ -284,14 +295,19 @@ export function ExpenseDetailSheet({ expense, members = [], simplifiedSettlement
                   </div>
 
                   {/* Settle all unsettled with payer */}
-                  {unsettledCount > 0 && currentUserId !== payerId && onSettle && (
-                    <div className="mt-3">
-                      <Button variant="primary" size="md" className="w-full"
-                        onClick={() => { onSettle(currentUserId!, payerId, expense.splits.filter((s: any) => !s.isSettled && (s.user?.id || s.userId) === currentUserId).reduce((sum: number, s: any) => sum + s.owedAmountInPaise, 0)); onClose(); }}>
-                        <HandCoins className="w-4 h-4" /> Settle All With {payerName}
-                      </Button>
-                    </div>
-                  )}
+                  {unsettledNonPayer.length > 0 && currentUserId !== payerId && onSettle && (() => {
+                    const myUnsettled = unsettledNonPayer.filter((s: any) => (s.user?.id || s.userId) === currentUserId);
+                    const myTotal = myUnsettled.reduce((sum: number, s: any) => sum + s.owedAmountInPaise, 0);
+                    if (myTotal <= 0) return null;
+                    return (
+                      <div className="mt-3">
+                        <Button variant="primary" size="md" className="w-full"
+                          onClick={() => { onSettle(currentUserId!, payerId, myTotal); onClose(); }}>
+                          <HandCoins className="w-4 h-4" /> Settle All With {payerName}
+                        </Button>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
