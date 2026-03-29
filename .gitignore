@@ -30,3 +30,5 @@ coverage/
 
 # Prisma
 apps/server/prisma/migrations/*.sql.bak
+
+*.md
