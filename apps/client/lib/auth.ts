@@ -92,8 +92,8 @@ const authConfig = NextAuth({
           // These will be picked up by the jwt callback
           (user as any).accessToken = result.accessToken;
           (user as any).id = result.user.id;
-        } catch {
-          // If NestJS is down, still allow sign-in but without API access
+        } catch (err) {
+          console.error('[auth] OAuth sync failed:', err);
           return true;
         }
       }
