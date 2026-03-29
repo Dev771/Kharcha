@@ -1,14 +1,131 @@
 # EXECUTION-PLAN.md — Kharcha (खर्चा)
 
 **Generated:** 2026-03-28
+**Updated:** 2026-03-29
 **Source:** `docs/PRD.md` v1.0, `docs/TECH_SPEC.md` v1.0
-**Overrides applied:** Turborepo monorepo, NextAuth v5 (no Keycloak), Supabase local (no Docker Compose for DB), no deployment, solo dev, `client`/`server`/`shared` naming
+**Overrides applied:** Turborepo monorepo, NextAuth v5 (no Keycloak), plain Docker Postgres + Redis (not Supabase), no deployment, solo dev, `client`/`server`/`shared` naming
+
+---
+
+## 0. Quick Start — Setup & Run Commands
+
+### Prerequisites
+
+- **Node.js** 20+ (`node -v`)
+- **pnpm** 9+ (`pnpm -v` — install: `npm install -g pnpm@9`)
+- **Docker Desktop** running (`docker info`)
+- **Git** (`git --version`)
+
+### First-Time Setup
+
+```bash
+# 1. Clone and install
+git clone <repo-url> kharcha && cd kharcha
+pnpm install
+
+# 2. Environment
+cp .env.example .env
+
+# 3. Start infrastructure (Postgres + Redis)
+docker run -d --name kharcha-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=postgres \
+  -p 54322:5432 \
+  postgres:17-alpine
+
+docker run -d --name kharcha-redis \
+  -p 6379:6379 \
+  redis:7-alpine
+
+# 4. Verify infra
+docker exec kharcha-postgres pg_isready -U postgres   # → "accepting connections"
+docker exec kharcha-redis redis-cli ping               # → "PONG"
+
+# 5. Run database migrations + seed (after Phase 1)
+pnpm --filter @kharcha/server exec prisma migrate dev
+pnpm --filter @kharcha/server exec prisma db seed
+
+# 6. Build shared package (must build before running apps)
+pnpm turbo build --filter=@kharcha/shared
+
+# 7. Start development servers
+pnpm turbo dev
+```
+
+### Daily Development
+
+```bash
+# Start infra (if stopped after reboot)
+docker start kharcha-postgres kharcha-redis
+
+# Start all dev servers (client on :3000, server on :3001)
+pnpm turbo dev
+
+# Or start individually:
+pnpm --filter @kharcha/client dev    # Next.js on http://localhost:3000
+pnpm --filter @kharcha/server dev    # NestJS on http://localhost:3001
+```
+
+### Common Commands
+
+```bash
+# Build
+pnpm turbo build                          # Build all packages
+pnpm turbo build --filter=@kharcha/shared # Build shared only
+
+# Test
+pnpm turbo test                           # Run all tests
+pnpm --filter @kharcha/shared test        # Test shared only
+pnpm --filter @kharcha/server test        # Test server only
+pnpm --filter @kharcha/server test:e2e    # Integration tests
+
+# Lint & Format
+pnpm turbo lint                           # Lint all
+pnpm format                               # Prettier format all
+
+# Database
+pnpm --filter @kharcha/server exec prisma studio      # Visual DB browser
+pnpm --filter @kharcha/server exec prisma migrate dev  # Apply migrations
+pnpm --filter @kharcha/server exec prisma db seed      # Reset + seed data
+pnpm --filter @kharcha/server exec prisma generate     # Regenerate client
+
+# Docker
+docker ps                                              # Check running containers
+docker stop kharcha-postgres kharcha-redis             # Stop infra
+docker start kharcha-postgres kharcha-redis            # Start infra
+docker rm -f kharcha-postgres kharcha-redis            # Remove containers entirely
+```
+
+### Environment Variables (`.env`)
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=dev-jwt-secret-change-in-production-min-32-chars-long
+NEXTAUTH_SECRET=dev-nextauth-secret-change-in-production
+NEXTAUTH_URL=http://localhost:3000
+API_PORT=3001
+API_URL=http://localhost:3001
+CORS_ORIGINS=http://localhost:3000
+```
+
+### Ports
+
+| Service | Port | URL |
+|---------|------|-----|
+| Next.js (client) | 3000 | http://localhost:3000 |
+| NestJS (server) | 3001 | http://localhost:3001 |
+| Swagger docs | 3001 | http://localhost:3001/api/docs |
+| PostgreSQL | 54322 | `postgresql://postgres:postgres@localhost:54322/postgres` |
+| Redis | 6379 | `redis://localhost:6379` |
+| Prisma Studio | 5555 | http://localhost:5555 |
 
 ---
 
 ## 1. Architecture Summary
 
-Kharcha is a modular monolith expense splitting platform. The **Next.js 14+ App Router** (`apps/client`) serves as both frontend and BFF — it handles session management via NextAuth v5, renders React Server Components, and proxies authenticated requests to the **NestJS API** (`apps/server`) using JWT Bearer tokens. The NestJS server is organized into domain modules (Auth, User, Group, Expense, Balance, Settlement, Export, Notification) with shared guards, interceptors, and pipes. **PostgreSQL** (via Supabase local) stores all persistent data through **Prisma ORM** with integer-based money storage (paise/cents). **Redis** caches computed balances and handles rate-limiting state. A `packages/shared` package provides types, constants, and pure utility functions (money math, split calculations) consumed by both apps.
+Kharcha is a modular monolith expense splitting platform. The **Next.js 14+ App Router** (`apps/client`) serves as both frontend and BFF — it handles session management via NextAuth v5, renders React Server Components, and proxies authenticated requests to the **NestJS API** (`apps/server`) using JWT Bearer tokens. The NestJS server is organized into domain modules (Auth, User, Group, Expense, Balance, Settlement, Export, Notification) with shared guards, interceptors, and pipes. **PostgreSQL** (Docker, `postgres:17-alpine`) stores all persistent data through **Prisma ORM** with integer-based money storage (paise/cents). **Redis** (Docker, `redis:7-alpine`) caches computed balances and handles rate-limiting state. A `packages/shared` package provides types, constants, and pure utility functions (money math, split calculations) consumed by both apps.
 
 ### System Flow Diagram
 
@@ -44,9 +161,8 @@ Kharcha is a modular monolith expense splitting platform. The **Next.js 14+ App 
        ▼                  ▼                  ▼
 ┌────────────┐    ┌────────────┐    ┌────────────────┐
 │ PostgreSQL │    │   Redis    │    │  Local FS /    │
-│ (Supabase  │    │ (standalone│    │  GCS (future)  │
-│  local)    │    │  server)   │    │  for receipts  │
-│ Port 54322 │    │ Port 6379  │    │  & exports     │
+│  (Docker)  │    │  (Docker)  │    │  GCS (future)  │
+│ Port 54322 │    │ Port 6379  │    │  for receipts  │
 └────────────┘    └────────────┘    └────────────────┘
 ```
 
@@ -60,8 +176,8 @@ Kharcha is a modular monolith expense splitting platform. The **Next.js 14+ App 
 | BFF Auth | NextAuth v5 | 5.x |
 | Backend | NestJS (modular monolith) | 10.x |
 | ORM | Prisma | 5.x |
-| Database | PostgreSQL (Supabase local) | 16 |
-| Cache | Redis (standalone) | 7.x |
+| Database | PostgreSQL (Docker) | 17 |
+| Cache | Redis (Docker) | 7.x |
 | Validation (server) | class-validator + class-transformer | 0.14 / 0.5 |
 | Validation (client) | Zod | 3.23 |
 | PDF Generation | @react-pdf/renderer | 3.x |
@@ -204,20 +320,19 @@ kharcha/
 | `.prettierrc` | Consistent formatting (singleQuote, trailingComma, etc.) |
 | `.env.example` | Template for all required environment variables |
 | `.npmrc` | `shamefully-hoist=true` or strict pnpm settings |
-| `.gitignore` | node_modules, dist, .next, .env, .turbo, supabase/.temp |
+| `.gitignore` | node_modules, dist, .next, .env, .turbo |
 
 ---
 
 ## 3. Phased Execution Plan
 
-### Phase 0: Monorepo Scaffolding + Supabase Local + Shared Foundation
+### Phase 0: Monorepo Scaffolding + Docker Infra + Shared Foundation (COMPLETE)
 
-**Goal:** Establish the Turborepo monorepo structure, initialize Supabase local for Postgres, install a standalone Redis, and build the `packages/shared` foundation with types, constants, and utility functions.
+**Goal:** Establish the Turborepo monorepo structure, Docker containers for Postgres and Redis, and the `packages/shared` foundation with types, constants, and utility functions.
 
 **Deliverables:**
 - Working Turborepo monorepo with `apps/client`, `apps/server`, `packages/shared`
-- Supabase local running (Postgres on port 54322)
-- Redis server running locally (port 6379)
+- Docker: `kharcha-postgres` (port 54322) + `kharcha-redis` (port 6379)
 - `packages/shared` with money utils, split calculator, types, and constants — all compiling and passing tests
 - Root configs: turbo.json, pnpm-workspace.yaml, tsconfig.base.json, ESLint, Prettier, .env.example
 
@@ -232,24 +347,23 @@ kharcha/
 - `packages/shared/src/utils/money.ts`, `packages/shared/src/utils/split.ts`, `packages/shared/src/utils/validation.ts`
 - `apps/client/package.json`, `apps/client/tsconfig.json` (minimal Next.js stub)
 - `apps/server/package.json`, `apps/server/tsconfig.json` (minimal NestJS stub)
-- `supabase/config.toml` (Supabase local init)
 
 **Definition of Done:**
-- [ ] `pnpm install` completes without errors at monorepo root
-- [ ] `pnpm turbo build --filter=@kharcha/shared` succeeds
-- [ ] `npx supabase start` launches Postgres on port 54322 (verify with `psql`)
-- [ ] Redis is accessible on `localhost:6379`
-- [ ] Unit tests for `money.ts` and `split.ts` pass (`pnpm --filter @kharcha/shared test`)
+- [x] `pnpm install` completes without errors at monorepo root
+- [x] `pnpm turbo build --filter=@kharcha/shared` succeeds
+- [x] `docker exec kharcha-postgres pg_isready -U postgres` → "accepting connections"
+- [x] `docker exec kharcha-redis redis-cli ping` → "PONG"
+- [x] 41 unit tests pass (`pnpm --filter @kharcha/shared test`)
 
 ---
 
 ### Phase 1: Prisma Schema + Migrations + Seed Data
 
-**Goal:** Define the complete Prisma schema matching the tech spec, run the initial migration against Supabase local Postgres, and create seed data for development.
+**Goal:** Define the complete Prisma schema matching the tech spec, run the initial migration against Postgres, and create seed data for development.
 
 **Deliverables:**
 - `prisma/schema.prisma` with all models (User, Account, Group, GroupMember, Participant, Expense, ExpenseSplit, Settlement, Notification)
-- Initial migration applied to Supabase local Postgres
+- Initial migration applied to Postgres
 - Seed script creating demo users, a demo group, sample expenses, and settlements
 - Generated Prisma Client
 
@@ -298,7 +412,7 @@ kharcha/
 - [ ] `pnpm --filter @kharcha/server start:dev` starts server on port 3001
 - [ ] `curl http://localhost:3001/health` returns `{ "success": true, "data": { "status": "ok" } }`
 - [ ] Swagger UI accessible at `http://localhost:3001/api/docs`
-- [ ] PrismaService connects to Supabase local Postgres (port 54322)
+- [ ] PrismaService connects to Postgres (port 54322)
 - [ ] RedisService connects to Redis (port 6379)
 
 ---
@@ -717,7 +831,7 @@ kharcha/
 
 ---
 
-### Phase 0: Monorepo Scaffolding + Supabase Local + Shared Foundation
+### Phase 0: Monorepo Scaffolding + Docker Infra + Shared Foundation (COMPLETE)
 **Goal:** Establish the full monorepo structure, local dev infrastructure, and shared package with types/utils.
 **Depends on:** Nothing
 
@@ -733,7 +847,7 @@ You are initializing a Turborepo monorepo from scratch for the Kharcha (खर�
 # EXPLORATION (do this FIRST, before writing any code)
 1. Run `ls` to see the current state of the project root
 2. Check if `node` and `pnpm` are installed: `node -v && pnpm -v`
-3. Check if Supabase CLI is installed: `npx supabase --version` (if not, we'll install it)
+3. Check if Docker is running: `docker info`
 4. Check if Redis is available: `redis-server --version` or `redis-cli ping` (if not, note it for manual install)
 
 # TASK
@@ -866,13 +980,11 @@ dist/
 .env.local
 *.log
 .DS_Store
-supabase/.temp/
-supabase/.branches/
 ```
 
 Create `.env.example`:
 ```bash
-# ─── Database (Supabase local) ───
+# ─── Database (Docker Postgres) ───
 DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
 
 # ─── Redis ───
@@ -895,32 +1007,34 @@ CORS_ORIGINS=http://localhost:3000
 # GCS_BUCKET_EXPORTS=
 ```
 
-## Step 2: Supabase Local Setup
+## Step 2: Start Docker Infrastructure
 
-Run:
+Start Postgres and Redis as lightweight Docker containers:
+
 ```bash
-npx supabase init
+# Postgres 17 on port 54322
+docker run -d --name kharcha-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=postgres \
+  -p 54322:5432 \
+  postgres:17-alpine
+
+# Redis 7 on port 6379
+docker run -d --name kharcha-redis \
+  -p 6379:6379 \
+  redis:7-alpine
 ```
 
-This creates a `supabase/` directory with `config.toml`. The default config runs Postgres on port 54322. Verify this in the generated `config.toml`.
-
-Then start Supabase:
+Verify:
 ```bash
-npx supabase start
+docker exec kharcha-postgres pg_isready -U postgres   # → "accepting connections"
+docker exec kharcha-redis redis-cli ping               # → "PONG"
 ```
 
-Note: Supabase local provides Postgres at `postgresql://postgres:postgres@localhost:54322/postgres`. We use this as our DATABASE_URL. We do NOT use Supabase Auth (we use NextAuth instead).
+After a reboot, restart with: `docker start kharcha-postgres kharcha-redis`
 
-## Step 3: Redis Setup
-
-For local Redis:
-- On Windows with WSL or via Docker: `docker run -d --name kharcha-redis -p 6379:6379 redis:7-alpine`
-- On Mac: `brew install redis && brew services start redis`
-- On Linux: `sudo apt install redis-server && sudo systemctl start redis`
-
-Pick whichever is simplest for the current platform. We use a standalone Redis (no password for local dev) at `redis://localhost:6379`.
-
-**Redis decision note:** We chose standalone Redis over Supabase Edge Functions because: (1) Redis is a first-class dependency used for balance caching, rate limiting state, and potential session storage. (2) Edge Functions are serverless and can't act as a persistent cache. (3) ioredis client is well-tested with NestJS.
+**Why plain Docker instead of Supabase local?** Supabase local starts 12+ containers (Auth, Storage, Realtime, Edge Functions, Studio, API gateway, analytics, etc.) — we only need Postgres. Plain Docker = 2 containers, ~50MB RAM instead of ~1.5GB.
 
 ## Step 4: `packages/shared` Package
 
@@ -1679,8 +1793,8 @@ When done, verify:
 - [ ] `pnpm install` completes without errors
 - [ ] `pnpm turbo build --filter=@kharcha/shared` produces `packages/shared/dist/` with .js and .d.ts files
 - [ ] `pnpm --filter @kharcha/shared test` — all money and split tests pass
-- [ ] `npx supabase status` shows Postgres running on port 54322
-- [ ] `redis-cli ping` returns PONG (or docker exec equivalent)
+- [ ] `docker exec kharcha-postgres pg_isready -U postgres` → "accepting connections"
+- [ ] `docker exec kharcha-redis redis-cli ping` → "PONG"
 - [ ] `.env.example` exists with all documented env vars
 - [ ] `pnpm turbo build` builds all three packages without errors (client/server may just be stubs)
 </prompt>
@@ -1699,13 +1813,13 @@ You are working in a Turborepo monorepo for the Kharcha expense splitting app.
 - `apps/client` — Next.js 14+ App Router (frontend + BFF)
 - `apps/server` — NestJS modular monolith (backend API)
 - `packages/shared` — Shared types, constants, utility functions
-- Database: PostgreSQL via Supabase local (port 54322, user: postgres, password: postgres, db: postgres)
+- Database: PostgreSQL via Docker (port 54322, user: postgres, password: postgres, db: postgres)
 
 # EXPLORATION (do this FIRST)
 1. Read `packages/shared/src/types/` to understand the type definitions already in place
 2. Read `apps/server/package.json` to see current dependencies
 3. Check if Prisma is already installed: `grep -r "prisma" apps/server/package.json`
-4. Verify Supabase is running: `npx supabase status`
+4. Verify Postgres is running: `docker exec kharcha-postgres pg_isready -U postgres`
 
 # TASK
 Create the complete Prisma schema and seed data for the Kharcha database.
@@ -2177,7 +2291,7 @@ When done, verify:
 # CONTEXT
 You are working in a Turborepo monorepo for the Kharcha expense splitting app.
 - `apps/server` — NestJS modular monolith (backend API) — `@kharcha/server`
-- Database: PostgreSQL via Supabase local (port 54322)
+- Database: PostgreSQL via Docker (port 54322)
 - Redis: standalone on port 6379
 - Prisma schema and migrations already exist in `apps/server/prisma/schema.prisma`
 
@@ -4024,7 +4138,7 @@ When done, verify:
 
 ```mermaid
 graph TD
-    P0[Phase 0: Monorepo + Supabase + Shared] --> P1[Phase 1: Prisma Schema]
+    P0[Phase 0: Monorepo + Docker + Shared] --> P1[Phase 1: Prisma Schema]
     P0 --> P2[Phase 2: NestJS Bootstrap]
     P1 --> P2
     P2 --> P3[Phase 3: Auth Module]

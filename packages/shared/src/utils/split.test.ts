@@ -243,4 +243,55 @@ describe('calculateSplit', () => {
       ).toThrow('must be an integer');
     });
   });
+
+  // ─── Edge cases ───
+
+  describe('edge cases', () => {
+    it('handles 50 participants (large group)', () => {
+      const participants = Array.from({ length: 50 }, (_, i) => ({
+        userId: `u${i}`,
+      }));
+      const result = calculateSplit({
+        totalInPaise: 100000,
+        splitType: 'EQUAL',
+        participants,
+      });
+      assertZeroSum(result, 100000);
+      expect(result).toHaveLength(50);
+    });
+
+    it('handles very large amounts (Rs 10,00,000)', () => {
+      const result = calculateSplit({
+        totalInPaise: 10000000,
+        splitType: 'EQUAL',
+        participants: [{ userId: 'a' }, { userId: 'b' }, { userId: 'c' }],
+      });
+      assertZeroSum(result, 10000000);
+    });
+
+    it('handles minimum amount (1 paisa) between 2 people', () => {
+      const result = calculateSplit({
+        totalInPaise: 1,
+        splitType: 'EQUAL',
+        participants: [{ userId: 'a' }, { userId: 'b' }],
+      });
+      assertZeroSum(result, 1);
+      expect(result[0].owedInPaise).toBe(1);
+      expect(result[1].owedInPaise).toBe(0);
+    });
+
+    it('handles 100% to one person in percentage split', () => {
+      const result = calculateSplit({
+        totalInPaise: 50000,
+        splitType: 'PERCENTAGE',
+        participants: [
+          { userId: 'a', value: 100 },
+          { userId: 'b', value: 0 },
+        ],
+      });
+      assertZeroSum(result, 50000);
+      expect(result[0].owedInPaise).toBe(50000);
+      expect(result[1].owedInPaise).toBe(0);
+    });
+  });
 });

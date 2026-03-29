@@ -3,18 +3,59 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "dev": "ts-node --project tsconfig.json src/main.ts",
-    "start": "node dist/main.js",
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "echo \"Tests will be added in later phases\""
+    "test": "jest --passWithNoTests"
   },
   "dependencies": {
-    "@kharcha/shared": "workspace:*"
+    "@kharcha/shared": "workspace:*",
+    "@nestjs/common": "^11.1.17",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/core": "^11.1.17",
+    "@nestjs/event-emitter": "^3.0.1",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.17",
+    "@nestjs/schedule": "^6.1.1",
+    "@nestjs/swagger": "^11.2.6",
+    "@nestjs/throttler": "^6.5.0",
+    "@prisma/adapter-pg": "^7.6.0",
+    "@prisma/client": "^7.6.0",
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.10.1",
+    "papaparse": "^5.5.3",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "devDependencies": {
-    "typescript": "^5.7",
+    "@nestjs/cli": "^11.0.16",
+    "@nestjs/testing": "^11.1.17",
+    "@types/bcrypt": "^6.0.0",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22",
+    "@types/papaparse": "^5.5.2",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/pg": "^8.20.0",
+    "dotenv": "^17.3.1",
+    "jest": "^30.3.0",
+    "prisma": "^7.6.0",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9",
-    "@types/node": "^22"
+    "tsx": "^4.21.0",
+    "typescript": "^5.7"
   }
 }

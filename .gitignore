@@ -11,10 +11,6 @@ dist/
 .env.local
 .env.*.local
 
-# Supabase
-supabase/.temp/
-supabase/.branches/
-
 # IDE
 .vscode/
 .idea/
