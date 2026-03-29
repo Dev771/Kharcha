@@ -189,146 +189,146 @@ input::placeholder, textarea::placeholder {
    COMPONENT CLASSES
    ═══════════════════════════════════════════════════ */
 
-/* ─── Cards ─── */
-.card-surface {
-  background-color: var(--card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-base);
-}
-.card-elevated {
-  background-color: var(--card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-card);
-}
-.card-interactive {
-  background-color: var(--card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-base);
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.card-interactive:hover {
-  box-shadow: var(--shadow-card);
-  border-color: var(--hover);
-}
-.card-interactive:active {
-  transform: scale(0.98);
-}
+@layer components {
+  /* ─── Cards ─── */
+  .card-surface {
+    background-color: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-base);
+  }
+  .card-elevated {
+    background-color: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+  }
+  .card-interactive {
+    background-color: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-base);
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card-interactive:hover {
+    box-shadow: var(--shadow-card);
+    border-color: var(--hover);
+  }
+  .card-interactive:active {
+    transform: scale(0.98);
+  }
 
-/* ─── Inputs ─── */
-.input-field {
-  width: 100%;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  border-radius: var(--radius-md);
-  background: var(--subtle);
-  border: 1px solid var(--border-light);
-  font-size: 15px;
-  color: var(--foreground);
-  outline: none;
-  transition: all 150ms;
-}
-.input-field:focus {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--subtle) 80%, transparent);
-}
+  /* ─── Inputs ─── */
+  .input-field {
+    width: 100%;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-radius: var(--radius-md);
+    background: var(--subtle);
+    border: 1px solid var(--border-light);
+    font-size: 15px;
+    color: var(--foreground);
+    outline: none;
+    transition: all 150ms;
+  }
+  .input-field:focus {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--subtle) 80%, transparent);
+  }
 
-.select-field {
-  width: 100%;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  border-radius: var(--radius-md);
-  background: var(--subtle);
-  border: 1px solid var(--border-light);
-  font-size: 15px;
-  color: var(--foreground);
-  outline: none;
-  transition: all 150ms;
-}
-.select-field:focus {
-  border-color: var(--primary);
-}
+  .select-field {
+    width: 100%;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-radius: var(--radius-md);
+    background: var(--subtle);
+    border: 1px solid var(--border-light);
+    font-size: 15px;
+    color: var(--foreground);
+    outline: none;
+    transition: all 150ms;
+  }
+  .select-field:focus {
+    border-color: var(--primary);
+  }
 
-/* ─── Amounts ─── */
-.amount-credit { color: #22C55E; font-weight: 600; }
-.amount-debit { color: #EF4444; font-weight: 600; }
+  /* ─── Amounts ─── */
+  .amount-credit { color: #22C55E; font-weight: 600; }
+  .amount-debit { color: #EF4444; font-weight: 600; }
 
-/* ─── Sheet / Overlay ─── */
-.overlay-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  z-index: 50;
+  /* ─── Sheet / Overlay ─── */
+  .overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 50;
+  }
+  .sheet-handle {
+    width: 2.5rem;
+    height: 0.25rem;
+    border-radius: var(--radius-full);
+    background-color: var(--muted);
+    margin: 0 auto;
+  }
+
+  /* ─── Skeleton ─── */
+  .skeleton {
+    background-color: var(--muted);
+    border-radius: var(--radius-md);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* ─── Bottom Safe Area ─── */
+  .pb-safe {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  /* ─── FAB ─── */
+  .fab {
+    position: fixed;
+    bottom: 5rem;
+    right: 1rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #4A7C59, #3A6147);
+    color: white;
+    box-shadow: var(--shadow-brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 200ms;
+    z-index: 30;
+  }
+  .fab:hover { transform: scale(1.05); }
+  .fab:active { transform: scale(0.95); }
+  @media (min-width: 768px) {
+    .fab { bottom: 1.5rem; right: 1.5rem; }
+  }
+
+  /* ─── Progress Ring ─── */
+  .progress-ring {
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+
+  /* ─── Scrollbar ─── */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  /* ─── Stagger delays ─── */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+
+  .touch-pan-y { touch-action: pan-y; }
 }
-.sheet-handle {
-  width: 2.5rem;
-  height: 0.25rem;
-  border-radius: var(--radius-full);
-  background-color: var(--muted);
-  margin: 0 auto;
-}
-
-/* ─── Skeleton ─── */
-.skeleton {
-  background-color: var(--muted);
-  border-radius: var(--radius-md);
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* ─── Bottom Safe Area ─── */
-.pb-safe {
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
-}
-
-/* ─── FAB ─── */
-.fab {
-  position: fixed;
-  bottom: 5rem;
-  right: 1rem;
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #4A7C59, #3A6147);
-  color: white;
-  box-shadow: var(--shadow-brand);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 200ms;
-  z-index: 30;
-}
-.fab:hover { transform: scale(1.05); }
-.fab:active { transform: scale(0.95); }
-@media (min-width: 768px) {
-  .fab { bottom: 1.5rem; right: 1.5rem; }
-}
-
-/* ─── Progress Ring ─── */
-.progress-ring {
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-}
-
-/* ═══════════════════════════════════════════════════
-   UTILITIES
-   ═══════════════════════════════════════════════════ */
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-
-.stagger-1 { animation-delay: 0.05s; }
-.stagger-2 { animation-delay: 0.1s; }
-.stagger-3 { animation-delay: 0.15s; }
-.stagger-4 { animation-delay: 0.2s; }
-.stagger-5 { animation-delay: 0.25s; }
-
-.touch-pan-y { touch-action: pan-y; }
