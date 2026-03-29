@@ -3,14 +3,15 @@
 import { Amount } from '@/components/ui/amount';
 import { MemberAvatar } from '@/components/ui/member-avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowDown, TrendingUp } from 'lucide-react';
+import { ArrowDown, TrendingUp, HandCoins } from 'lucide-react';
 
 interface SimplifiedProps {
   data: any;
   onSettle: (fromId: string, toId: string, amount: number) => void;
+  onSettleAll?: (fromId: string, toId: string) => void;
 }
 
-export function SimplifiedView({ data, onSettle }: SimplifiedProps) {
+export function SimplifiedView({ data, onSettle, onSettleAll }: SimplifiedProps) {
   const settlements = data?.settlements || [];
 
   return (
@@ -36,9 +37,16 @@ export function SimplifiedView({ data, onSettle }: SimplifiedProps) {
           </div>
           <div className="flex items-center justify-between">
             <Amount paise={s.amountInPaise} size="lg" className="text-debit" />
-            <Button variant="primary" size="sm" onClick={() => onSettle(s.from.id, s.to.id, s.amountInPaise)}>
-              Settle
-            </Button>
+            <div className="flex gap-2">
+              {onSettleAll && (
+                <Button variant="secondary" size="sm" onClick={() => onSettleAll(s.from.id, s.to.id)}>
+                  <HandCoins className="w-3.5 h-3.5" /> Clear All
+                </Button>
+              )}
+              <Button variant="primary" size="sm" onClick={() => onSettle(s.from.id, s.to.id, s.amountInPaise)}>
+                Settle
+              </Button>
+            </div>
           </div>
         </div>
       ))}

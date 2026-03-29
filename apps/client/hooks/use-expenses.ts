@@ -67,3 +67,45 @@ export function useCreateExpense(groupId: string) {
     },
   });
 }
+
+export function useUpdateExpense(groupId: string) {
+  const { data: session } = useSession();
+  const token = (session as any)?.accessToken as string | undefined;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ expenseId, data }: { expenseId: string; data: any }) =>
+      apiClient(`/groups/${groupId}/expenses/${expenseId}`, {
+        method: 'PATCH',
+        body: data,
+        token,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['balances', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['balances-simplified', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['user-summary'] });
+    },
+  });
+}
+
+export function useDeleteExpense(groupId: string) {
+  const { data: session } = useSession();
+  const token = (session as any)?.accessToken as string | undefined;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (expenseId: string) =>
+      apiClient(`/groups/${groupId}/expenses/${expenseId}`, {
+        method: 'DELETE',
+        token,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['balances', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['balances-simplified', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['user-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+    },
+  });
+}

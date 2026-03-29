@@ -7,6 +7,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpenseFilterDto } from './dto/expense-filter.dto';
 import { calculateSplit } from '@kharcha/shared';
 import type { SplitType } from '@kharcha/shared';
@@ -172,6 +173,96 @@ export class ExpenseService {
 
     if (!expense) throw new NotFoundException('Expense not found');
     return expense;
+  }
+
+  async update(
+    groupId: string,
+    expenseId: string,
+    dto: UpdateExpenseDto,
+    userId: string,
+    userRole: string,
+  ) {
+    const expense = await this.prisma.expense.findFirst({
+      where: { id: expenseId, groupId, deletedAt: null },
+    });
+
+    if (!expense) throw new NotFoundException('Expense not found');
+
+    if (expense.paidById !== userId && userRole !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Only the payer or group admin can edit this expense',
+      );
+    }
+
+    // If splits are being updated, recalculate
+    if (dto.splits && dto.amountInPaise) {
+      const splitUserIds = dto.splits.map((s) => s.userId);
+      const members = await this.prisma.groupMember.findMany({
+        where: { groupId, userId: { in: splitUserIds } },
+        select: { userId: true },
+      });
+      const memberIds = new Set(members.map((m) => m.userId));
+      for (const uid of splitUserIds) {
+        if (!memberIds.has(uid)) {
+          throw new BadRequestException(`User ${uid} is not a member of this group`);
+        }
+      }
+
+      const splitType = dto.splitType || expense.splitType;
+      let splitResults;
+      try {
+        splitResults = calculateSplit({
+          totalInPaise: dto.amountInPaise,
+          splitType: splitType as SplitType,
+          participants: dto.splits.map((s) => ({ userId: s.userId, value: s.value })),
+        });
+      } catch (err: any) {
+        throw new BadRequestException(err.message);
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.expense.update({
+          where: { id: expenseId },
+          data: {
+            ...(dto.amountInPaise !== undefined && { amountInPaise: dto.amountInPaise }),
+            ...(dto.description !== undefined && { description: dto.description }),
+            ...(dto.category !== undefined && { category: dto.category }),
+            ...(dto.splitType !== undefined && { splitType: dto.splitType as any }),
+            ...(dto.date !== undefined && { date: new Date(dto.date) }),
+            ...(dto.paidById !== undefined && { paidById: dto.paidById }),
+          },
+        });
+
+        // Delete old splits and create new ones
+        await tx.expenseSplit.deleteMany({ where: { expenseId } });
+        await tx.expenseSplit.createMany({
+          data: splitResults.map((s) => {
+            const original = dto.splits!.find((ds) => ds.userId === s.userId);
+            return {
+              expenseId,
+              userId: s.userId,
+              owedAmountInPaise: s.owedInPaise,
+              shareValue: original?.value ?? null,
+            };
+          }),
+        });
+      });
+    } else {
+      // Simple field update without split recalculation
+      await this.prisma.expense.update({
+        where: { id: expenseId },
+        data: {
+          ...(dto.description !== undefined && { description: dto.description }),
+          ...(dto.category !== undefined && { category: dto.category }),
+          ...(dto.date !== undefined && { date: new Date(dto.date) }),
+          ...(dto.paidById !== undefined && { paidById: dto.paidById }),
+        },
+      });
+    }
+
+    this.eventEmitter.emit('expense.updated', { groupId, expenseId });
+
+    return this.getDetail(groupId, expenseId);
   }
 
   async softDelete(

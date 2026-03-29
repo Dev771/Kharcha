@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api-client';
 import { useExpenses } from '@/hooks/use-expenses';
 import { useGroupBalances, useSimplifiedBalances } from '@/hooks/use-balances';
-import { useSettlements } from '@/hooks/use-settlements';
+import { useSettlements, useSettleAllBetween } from '@/hooks/use-settlements';
 import { ExpenseFilters } from '@/components/groups/expense-filters';
 import { ExpenseList } from '@/components/groups/expense-list';
 import { ExpenseDetailSheet } from '@/components/groups/expense-detail-sheet';
@@ -25,6 +25,7 @@ import { ProgressRing } from '@/components/ui/progress-ring';
 import { Button } from '@/components/ui/button';
 import { SkeletonCard, SkeletonLine } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { Users, ArrowLeft, Plus, UserPlus, Settings, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -71,6 +72,16 @@ export default function GroupDetailPage() {
 
   const handleSettle = (fromId: string, toId: string, amount: number) => {
     setSettlePrefill({ fromId, toId, amountInPaise: amount });
+  };
+
+  const settleAllMutation = useSettleAllBetween(groupId);
+  const handleSettleAll = async (fromId: string, toId: string) => {
+    try {
+      const result = await settleAllMutation.mutateAsync({ fromUserId: fromId, toUserId: toId }) as any;
+      toast.success(`Settled ${result.settledCount} expense${result.settledCount !== 1 ? 's' : ''}!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to settle');
+    }
   };
 
   if (groupLoading) {
@@ -189,7 +200,7 @@ export default function GroupDetailPage() {
               <Chip label="Detailed" selected={balanceView === 'detailed'} onClick={() => setBalanceView('detailed')} />
             </div>
             {balanceView === 'simplified' && simplified ? (
-              <SimplifiedView data={simplified} onSettle={handleSettle} />
+              <SimplifiedView data={simplified} onSettle={handleSettle} onSettleAll={handleSettleAll} />
             ) : rawBalances ? (
               <DetailedView balances={rawBalances.balances || []} />
             ) : (
@@ -200,7 +211,7 @@ export default function GroupDetailPage() {
 
         {activeTab === 'settle' && (
           <div className="space-y-6 animate-fade-in">
-            {simplified && <SimplifiedView data={simplified} onSettle={handleSettle} />}
+            {simplified && <SimplifiedView data={simplified} onSettle={handleSettle} onSettleAll={handleSettleAll} />}
             <div>
               <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Settlement History</h3>
               <SettlementList settlements={settlements || []} />
@@ -216,7 +227,7 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Sheets */}
-      <ExpenseDetailSheet expense={selectedExpense} onClose={() => setSelectedExpense(null)} />
+      <ExpenseDetailSheet expense={selectedExpense} members={members} simplifiedSettlements={simplified?.settlements} onSettle={handleSettle} onClose={() => setSelectedExpense(null)} />
       {settlePrefill && <SettleForm groupId={groupId} members={members} prefill={settlePrefill} onClose={() => setSettlePrefill(null)} />}
       {showAddMember && <AddMemberDialog groupId={groupId} inviteCode={group.inviteCode} onClose={() => setShowAddMember(false)} />}
       <AddExpenseSheet open={showExpenseForm} onClose={() => setShowExpenseForm(false)} groupId={groupId} members={members} currentUserId={session?.user?.id || ''} />

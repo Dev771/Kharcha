@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Body,
@@ -15,6 +16,7 @@ import { GroupMemberGuard } from '../../common/guards/group-member.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ExpenseService } from './expense.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpenseFilterDto } from './dto/expense-filter.dto';
 
 @ApiTags('Expenses')
@@ -59,6 +61,24 @@ export class ExpenseController {
     @Param('expenseId') expenseId: string,
   ) {
     return this.expenseService.getDetail(groupId, expenseId);
+  }
+
+  @Patch(':expenseId')
+  @ApiOperation({ summary: 'Update expense (payer or admin only)' })
+  async update(
+    @Param('groupId') groupId: string,
+    @Param('expenseId') expenseId: string,
+    @Body() dto: UpdateExpenseDto,
+    @CurrentUser('id') userId: string,
+    @Req() req: any,
+  ) {
+    return this.expenseService.update(
+      groupId,
+      expenseId,
+      dto,
+      userId,
+      req.groupRole,
+    );
   }
 
   @Delete(':expenseId')

@@ -169,12 +169,14 @@ model Expense {
 }
 
 model ExpenseSplit {
-  id                String  @id @default(uuid()) @db.Uuid
-  expenseId         String  @map("expense_id") @db.Uuid
-  userId            String? @map("user_id") @db.Uuid
-  participantId     String? @map("participant_id") @db.Uuid
-  owedAmountInPaise Int     @map("owed_amount_in_paise")
-  shareValue        Float?  @map("share_value")
+  id                String    @id @default(uuid()) @db.Uuid
+  expenseId         String    @map("expense_id") @db.Uuid
+  userId            String?   @map("user_id") @db.Uuid
+  participantId     String?   @map("participant_id") @db.Uuid
+  owedAmountInPaise Int       @map("owed_amount_in_paise")
+  shareValue        Float?    @map("share_value")
+  isSettled         Boolean   @default(false) @map("is_settled")
+  settledAt         DateTime? @map("settled_at") @db.Timestamptz
 
   expense     Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   user        User?        @relation(fields: [userId], references: [id])
@@ -182,7 +184,7 @@ model ExpenseSplit {
 
   @@index([expenseId])
   @@index([userId])
-  @@index([participantId])
+  @@index([userId, isSettled])
   @@map("expense_splits")
 }
 
