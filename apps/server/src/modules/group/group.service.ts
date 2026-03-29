@@ -110,6 +110,7 @@ export class GroupService {
         ...(dto.description !== undefined && {
           description: dto.description?.trim(),
         }),
+        ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
       },
     });
 

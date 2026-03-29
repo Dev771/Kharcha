@@ -6,5 +6,6 @@ export const config = {
     '/groups/:path*',
     '/activity/:path*',
     '/settings/:path*',
+    '/messages/:path*',
   ],
 };

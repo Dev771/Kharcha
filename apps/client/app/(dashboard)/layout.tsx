@@ -1,38 +1,34 @@
 'use client';
 
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSSE } from '@/hooks/use-sse';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Header } from '@/components/layout/header';
-import { MobileNav } from '@/components/layout/mobile-nav';
+import { DesktopHeader } from '@/components/layout/desktop-header';
+import { MobileHeader } from '@/components/layout/mobile-header';
+import { BottomTabBar } from '@/components/layout/bottom-tab-bar';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const token = (session as any)?.accessToken as string | undefined;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Connect to SSE for real-time notifications
   useSSE(token);
 
   return (
-    <div className="flex min-h-screen bg-zinc-950">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-1 relative pb-20 md:pb-0">
-          {/* Ambient gradient orbs */}
-          <div className="fixed inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute -top-40 -right-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
-            <div className="absolute top-1/3 -left-20 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-teal-500/[0.03] rounded-full blur-3xl" />
-          </div>
-          <div className="relative z-10">{children}</div>
+    <div className="min-h-screen bg-[var(--background)] flex">
+      <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
+        <div className="hidden md:block"><DesktopHeader /></div>
+        <div className="md:hidden"><MobileHeader /></div>
+
+        <main className="flex-1 pb-20 md:pb-6">
+          {children}
         </main>
-        <MobileNav />
       </div>
+
+      <BottomTabBar className="md:hidden" />
     </div>
   );
 }

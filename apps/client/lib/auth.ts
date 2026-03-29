@@ -49,6 +49,8 @@ const authConfig = NextAuth({
     }),
   ],
 
+  trustHost: true,
+
   session: {
     strategy: 'jwt',
     maxAge: 7 * 24 * 60 * 60,

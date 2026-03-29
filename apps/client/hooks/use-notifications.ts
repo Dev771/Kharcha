@@ -36,6 +36,41 @@ export function useNotifications(options?: { unreadOnly?: boolean }) {
   });
 }
 
+export function useMarkAsRead() {
+  const { data: session } = useSession();
+  const token = (session as any)?.accessToken as string | undefined;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId: string) =>
+      apiClient(`/notifications/${notificationId}/read`, { method: 'PATCH', token }),
+    onMutate: async (notificationId) => {
+      // Optimistically mark as read in cache
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+
+      queryClient.setQueriesData({ queryKey: ['notifications'] }, (old: any) => {
+        if (!old?.notifications) return old;
+        return {
+          ...old,
+          notifications: old.notifications.map((n: any) =>
+            n.id === notificationId ? { ...n, isRead: true } : n,
+          ),
+        };
+      });
+
+      // Optimistically decrement unread count
+      queryClient.setQueryData(['notifications-unread'], (old: any) => {
+        if (!old) return old;
+        return { count: Math.max(0, (old.count || 0) - 1) };
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
+    },
+  });
+}
+
 export function useMarkAllRead() {
   const { data: session } = useSession();
   const token = (session as any)?.accessToken as string | undefined;
@@ -44,7 +79,21 @@ export function useMarkAllRead() {
   return useMutation({
     mutationFn: () =>
       apiClient('/notifications/read-all', { method: 'POST', token }),
-    onSuccess: () => {
+    onMutate: async () => {
+      // Optimistically mark all as read
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+
+      queryClient.setQueriesData({ queryKey: ['notifications'] }, (old: any) => {
+        if (!old?.notifications) return old;
+        return {
+          ...old,
+          notifications: old.notifications.map((n: any) => ({ ...n, isRead: true })),
+        };
+      });
+
+      queryClient.setQueryData(['notifications-unread'], { count: 0 });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
     },

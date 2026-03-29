@@ -1,63 +1,44 @@
 'use client';
 
 import Link from 'next/link';
-import { formatCurrency } from '@kharcha/shared';
+import { Amount } from '@/components/ui/amount';
+import { AvatarStack } from '@/components/ui/avatar-stack';
 import { Users, ChevronRight } from 'lucide-react';
 
 interface Props {
-  group: {
-    id: string;
-    name: string;
-    description?: string | null;
-    memberCount: number;
-    isArchived: boolean;
-  };
+  group: { id: string; name: string; description?: string | null; imageUrl?: string | null; memberCount: number; isArchived: boolean; members?: any[] };
   netBalanceInPaise?: number;
   index?: number;
 }
 
 export function GroupCard({ group, netBalanceInPaise = 0, index = 0 }: Props) {
-  return (
-    <Link
-      href={`/groups/${group.id}`}
-      className="glass p-4 flex items-center gap-4 group transition-all hover:-translate-y-0.5 anim-fade-up"
-      style={{ animationDelay: `${index * 0.06}s` }}
-    >
-      {/* Icon */}
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/10 flex items-center justify-center flex-shrink-0">
-        <Users className="w-4 h-4 text-cyan-400" />
-      </div>
+  const memberList = (group.members || []).map((m: any) => ({
+    name: m.user?.name || 'Unknown', avatarUrl: m.user?.avatarUrl,
+  }));
 
-      {/* Info */}
+  return (
+    <Link href={`/groups/${group.id}`} className="card-interactive p-4 flex items-center gap-4 animate-fade-up" style={{ animationDelay: `${index * 0.05}s` }}>
+      {group.imageUrl ? (
+        <img src={group.imageUrl} alt={group.name} className="w-10 h-10 rounded-xl object-cover shrink-0" />
+      ) : (
+        <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center shrink-0">
+          <Users className="w-4 h-4 text-brand" />
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-zinc-200 truncate">
-            {group.name}
-          </p>
-          {group.isArchived && (
-            <span className="px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-500 rounded-md">
-              Archived
-            </span>
-          )}
+          <p className="text-sm font-medium text-[var(--foreground)] truncate">{group.name}</p>
+          {group.isArchived && <span className="text-[10px] px-1.5 py-0.5 bg-[var(--subtle)] text-[var(--text-muted)] rounded-md">Archived</span>}
         </div>
-        <p className="text-xs text-zinc-500">
-          {group.memberCount} member{group.memberCount !== 1 ? 's' : ''}
-        </p>
+        <div className="flex items-center gap-2 mt-1">
+          {memberList.length > 0 && <AvatarStack members={memberList} max={3} size="xs" />}
+          <span className="text-xs text-[var(--text-muted)]">{group.memberCount} members</span>
+        </div>
       </div>
-
-      {/* Balance */}
-      <div className="text-right flex-shrink-0">
-        <p
-          className={`text-sm font-semibold ${netBalanceInPaise > 0 ? 'text-emerald-400' : netBalanceInPaise < 0 ? 'text-rose-400' : 'text-zinc-500'}`}
-        >
-          {netBalanceInPaise !== 0
-            ? `${netBalanceInPaise > 0 ? '+' : ''}${formatCurrency(Math.abs(netBalanceInPaise))}`
-            : 'Settled'}
-        </p>
+      <div className="text-right shrink-0">
+        {netBalanceInPaise !== 0 ? <Amount paise={netBalanceInPaise} showSign colorize size="sm" /> : <span className="text-xs text-[var(--text-muted)]">Settled</span>}
       </div>
-
-      {/* Arrow */}
-      <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+      <ChevronRight className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
     </Link>
   );
 }

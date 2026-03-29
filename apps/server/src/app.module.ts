@@ -14,6 +14,7 @@ import { BalanceModule } from './modules/balance/balance.module';
 import { SettlementModule } from './modules/settlement/settlement.module';
 import { ExportModule } from './modules/export/export.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { MessageModule } from './modules/message/message.module';
 import { HealthController } from './health.controller';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -35,6 +36,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     SettlementModule,
     ExportModule,
     NotificationModule,
+    MessageModule,
   ],
   controllers: [HealthController],
   providers: [
